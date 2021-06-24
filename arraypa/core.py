@@ -94,6 +94,7 @@ class Reduce(Ast):
     def __repr__(self):
         return f'reduce(({self.op}), {self.array})'
 
+
 @dataclass
 class Lam(Ast):
     """Lambda abstraction with a typed var."""
@@ -147,7 +148,6 @@ def subst(var: Var, val, node: Ast):
         result = App(_subst(node.function), _subst(node.parameter))
     elif isinstance(node, Var) and node == var:
         result = val
-        #raise NotImplementedError("TODO: replace scalar val by () array")
     return result
 
 
