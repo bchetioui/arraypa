@@ -94,8 +94,21 @@ class Reduce(Ast):
     def __repr__(self):
         return f'reduce(({self.op}), {self.array})'
 
+@dataclass
+class Lam(Ast):
+    """Lambda abstraction with a typed var."""
+    shaped_var: Tuple[Var, Shape]
+    body: Ast
 
-def subst(var: Var, val: int, node: Ast):
+
+@dataclass
+class App(Ast):
+    """Lambda application."""
+    function: Ast
+    parameter: Ast
+
+
+def subst(var: Var, val, node: Ast):
     """Substitute a variable by a value throughout the AST."""
     _subst = partial(subst, var, val)
     result = node
@@ -126,8 +139,15 @@ def subst(var: Var, val: int, node: Ast):
         result = Psi(new_index, _subst(node.array))
     elif isinstance(node, Reduce):
         result = Reduce(node.op, _subst(node.array))
-    elif isinstance(node, Var):
-        raise NotImplementedError("TODO: replace scalar val by () array")
+    elif isinstance(node, Lam):
+        if node.shaped_var[0] == var:
+            raise ValueError(f"expression binds variable {var} more than once")
+        result = Lam(node.shaped_var, _subst(node.body))
+    elif isinstance(node, App):
+        result = App(_subst(node.function), _subst(node.parameter))
+    elif isinstance(node, Var) and node == var:
+        result = val
+        #raise NotImplementedError("TODO: replace scalar val by () array")
     return result
 
 

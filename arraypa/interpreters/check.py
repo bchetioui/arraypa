@@ -1,5 +1,5 @@
 from arraypa.core import (
-    Array, Ast, BinOp, Cat, ExpandDim, For, Index, Mul, Plus, Psi,
+    App, Array, Ast, BinOp, Cat, ExpandDim, For, Index, Lam, Mul, Plus, Psi,
     Reduce, Shape, subst, Var)
 
 from typing import Any, Callable, Dict
@@ -127,3 +127,39 @@ def _reduce_check_rule(node: Reduce):
 
 
 check_rules[Reduce] = _reduce_check_rule
+
+
+def _lam_check_rule(node: Lam):
+    # TODO: implement function types? But who cares...
+    raise ValueError("can not extract a shape for a function type")
+
+
+check_rules[Lam] = _lam_check_rule
+
+
+def _app_check_rule(node: App):
+    # To do anything, we need to resolve the innermost Application, i.e., the
+    # App node such that node.function is a Lambda abstraction (or conversely,
+    # the App node whose node.function is *NOT* another Application. Any
+    # other type of function node is not applicable, and therefore results in
+    # a type error.
+
+    def _apply_innermost(app):
+        if isinstance(app.function, Lam):
+            parameter_shape = infer_shape(app.parameter)
+            var, function_in_shape = app.function.shaped_var
+            function_in_shape = app.function.shaped_var[1]
+            if function_in_shape != parameter_shape:
+                raise ValueError(
+                    f"expected shape {function_in_shape} for parameter in "
+                    f"function application but got {parameter_shape}")
+            return subst(var, Array(function_in_shape), app.function.body)
+        elif isinstance(app.function, App):
+            return App(_apply_innermost(app.function), app.parameter)
+        else:
+            raise ValueError("unexpected node in function application")
+
+    return infer_shape(_apply_innermost(node))
+
+
+check_rules[App] = _app_check_rule

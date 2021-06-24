@@ -1,16 +1,9 @@
 from arraypa.backends.numpy import numpy_backend
 from arraypa.core import (
-    Array, Ast, Backend, BinOp, Cat, ExpandDim, For, Index, Mul, Plus,
+    App, Array, Ast, Backend, BinOp, Cat, ExpandDim, For, Index, Lam, Mul, Plus,
     Psi, Reduce, Shape, subst, Var)
 
 from typing import Any, Callable, Dict
-
-
-def _is_valid_index(idx: Index, shape: Shape) -> bool:
-    assert len(idx) <= len(shape)
-    assert all(map(lambda i: isinstance(i, int), idx)), (
-        "indexes containing opaque variables can not be checked")
-    return all(map(lambda i, bound: i >= 0 and i < bound, idx, shape))
 
 
 AstType = Any
@@ -129,3 +122,20 @@ def _reduce_eval_rule(node: Reduce):
 
 
 eval_rules[Reduce] = _reduce_eval_rule
+
+
+def _lam_eval_rule(node: Lam):
+    def _lambda_fn(val):
+        var, _ = node.shaped_var
+        return eval_ast(subst(var, val, node.body))
+    return _lambda_fn
+
+
+eval_rules[Lam] = _lam_eval_rule
+
+
+def _app_eval_rule(node: App):
+    return eval_ast(node.function)(eval_ast(node.parameter))
+
+
+eval_rules[App] = _app_eval_rule
