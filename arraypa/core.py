@@ -1,7 +1,7 @@
-from abc import ABC
+from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from functools import partial
-from typing import Any, Tuple, Union
+from typing import Any, Tuple, Type, Union
 
 Index = Tuple[Any, ...]  # Tuple[Union["Var", int], ...]
 Shape = Tuple[Any, ...]  # Tuple[Union["Var", int], ...]
@@ -18,20 +18,6 @@ class Array(Ast):
 
     def __getitem__(self, index: Index) -> "Array":
         raise NotImplementedError("must override")
-
-    def __mul__(self, other: "Array") -> "Array":
-        """Elementwise multiplication."""
-        raise NotImplementedError("must override")
-
-    def __add__(self, other: "Array") -> "Array":
-        raise NotImplementedError("must override")
-
-
-class Empty(Array):
-    def __init__(self, shape: Shape):
-        assert 0 in shape, ( "attempted to initialize an empty array with "
-                            f"non empty shape {shape}")
-        self.shape = shape
 
 
 @dataclass
@@ -72,7 +58,7 @@ class Cat(BinOp):
 
 @dataclass
 class ExpandDim(Ast):
-    axis: Any # Union["Var", int]
+    axis: Any  # Union["Var", int]
     array: Ast
 
 
@@ -126,7 +112,7 @@ def subst(var: Var, val: int, node: Ast):
                 builder = ty
                 break
         else:
-            raise ValueError(f"unknown binary operation")
+            raise ValueError(f"unknown binary operation {node}")
         result = builder(_subst(node.lhs), _subst(node.rhs))
     elif isinstance(node, ExpandDim):
         result = ExpandDim(_subst_scalar(node.axis), _subst(node.array))
@@ -142,5 +128,30 @@ def subst(var: Var, val: int, node: Ast):
         result = Reduce(node.op, _subst(node.array))
     elif isinstance(node, Var):
         raise NotImplementedError("TODO: replace scalar val by () array")
-        #result = val if var == node else node
     return result
+
+
+BackendArray = Any
+
+
+class Backend(ABC):
+    """
+    A backend overrides all the operations required to evaluate an Ast.
+    """
+    ArrayTy: Type[BackendArray]
+
+    @abstractmethod
+    def add(self, lhs: BackendArray, rhs: BackendArray):
+        ...
+
+    @abstractmethod
+    def mul(self, lhs: BackendArray, rhs: BackendArray):
+        ...
+
+    @abstractmethod
+    def cat(self, lhs: BackendArray, rhs: BackendArray):
+        ...
+
+    @abstractmethod
+    def reshape(self, array: BackendArray, new_shape: Shape):
+        ...
