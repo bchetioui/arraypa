@@ -47,9 +47,9 @@ eval_rules[Psi] = _psi_eval_rule
 def _elementwise_binop_eval_rule(node: BinOp) -> Array:
     def op(lhs, rhs):
         if isinstance(node, Plus):
-            return lhs + rhs
+            return _backend.add(lhs, rhs)
         if isinstance(node, Mul):
-            return lhs * rhs
+            return _backend.mul(lhs, rhs)
         raise ValueError(f"wrong node type {node}")
     return op(eval_ast(node.lhs), eval_ast(node.rhs))
 
